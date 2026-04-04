@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const { print } = require("pdf-to-printer");
+const fetch = require("node-fetch"); 
 
 const app = express();
 
@@ -89,22 +90,28 @@ app.post("/upload", uploadLimiter, upload.single("file"), (req, res) => {
 // });
 
 
-
 app.get("/print/:code", async (req, res) => {
     try {
         const code = req.params.code;
 
-        const pdfPath = path.join(__dirname, "uploads", code + ".pdf");
+        // 🔥 download file from cloud
+        const response = await fetch(`https://YOUR-RENDER-URL.onrender.com/file/${code}`);
 
-        if (!fs.existsSync(pdfPath)) {
-            return res.status(404).send("File not found");
+        if (!response.ok) {
+            return res.status(404).send("File not found or expired");
         }
 
-        // 🔥 DIRECT PRINT (NO PREVIEW)
-        await print(pdfPath);
+        const buffer = await response.arrayBuffer();
+
+        // save temporarily on local PC
+        const tempPath = path.join(__dirname, `${code}.pdf`);
+        fs.writeFileSync(tempPath, Buffer.from(buffer));
+
+        // 🔥 print locally (NO PREVIEW)
+        await print(tempPath);
 
         // delete after print
-        fs.unlinkSync(pdfPath);
+        fs.unlinkSync(tempPath);
 
         res.send("Printed successfully");
 
