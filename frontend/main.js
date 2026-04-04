@@ -1,4 +1,4 @@
-const { PDFDocument } =require("pdf-lib");
+// const { PDFDocument } =require("pdf-lib");
 const fileInput = document.getElementById('files');
 const fileList = document.getElementById('fileList');
 
@@ -88,12 +88,12 @@ function parsePages(input, totalPages) {
 
 async function merge() {
     try {
-        const mergepdf = await PDFDocument.create();
+        const mergepdf = await PDFLib.PDFDocument.create();
         const files = Array.from(fileInput.files);
 
         for (let i = 0; i < files.length; i++) {
 
-            const pdf = await PDFDocument.load(await files[i].arrayBuffer());
+            const pdf = await PDFLib.PDFDocument.load(await files[i].arrayBuffer());
 
             const pagesInput = document.getElementById(`pages-${i}`).value;
             const copyCount = parseInt(document.getElementById(`copies-${i}`).value) || 1;
@@ -289,6 +289,7 @@ async function uploadFile(name) {
     alert("Your Print Code: " + data.code + " is valid for only 30min ,take a print before that!!");
 }
 //this is the function that sent the get request to print with user [preview]
+
 // async function getFile() {
 //     const code = document.getElementById("codeInput").value;
 
@@ -296,10 +297,29 @@ async function uploadFile(name) {
 //         alert("Enter code");
 //         return;
 //     }
+//     try {
+        
+//         const res = await fetch(`/file/${code}`);
+//         if (!res.ok) throw new Error("File not found or expired");
 
-//     const url = `/file/${code}`;
-//     window.open(url);
+//         const blob = await res.blob();      
+//         const url = URL.createObjectURL(blob);
+
+//         window.open(url, "_blank");
+
+//         setTimeout(() => {
+//             URL.revokeObjectURL(url);
+//         }, 1 * 60 * 1000); 
+
+//     } catch (err) {
+//         console.error(err);
+//         alert("Failed to load PDF for preview");
+//     }
 // }
+
+
+
+// for user in college!!
 async function getFile() {
     const code = document.getElementById("codeInput").value;
 
@@ -308,17 +328,44 @@ async function getFile() {
         return;
     }
 
-    try {
-        const res = await fetch(`/print/${code}`);
-        const msg = await res.text();
+     try {
+       
+        const res = await fetch(`/file/${code}`);
+        if (!res.ok) throw new Error("File not found or expired");
+        const pdfBlob = await res.blob();
 
-        alert(msg); // "Printed successfully"
+
+        const url = URL.createObjectURL(pdfBlob);
+
+      
+        const iframe = document.createElement("iframe");
+        iframe.style.position = "fixed";
+        iframe.style.width = "0";
+        iframe.style.height = "0";
+        iframe.style.border = "none";
+        iframe.src = url;
+
+       
+        iframe.onload = () => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+                iframe.remove();
+            }, 1000);
+        };
+
+        document.body.appendChild(iframe);
 
     } catch (err) {
         console.error(err);
-        alert("Print failed");
+        alert("Print failed: " + err.message);
     }
 }
+
+
+
 window.getFile = getFile;
 window.merge = merge;
 window.showfiles = showfiles;

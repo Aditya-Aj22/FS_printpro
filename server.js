@@ -6,7 +6,6 @@ const crypto = require("crypto");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const { print } = require("pdf-to-printer");
-const fetch = require("node-fetch"); 
 
 const app = express();
 
@@ -59,67 +58,61 @@ app.post("/upload", uploadLimiter, upload.single("file"), (req, res) => {
 });
 
 // these is the function to give preview before print (user has access)
-// app.get("/file/:code", (req, res) => {
-//     const code = req.params.code;
+app.get("/file/:code", (req, res) => {
+    const code = req.params.code;
 
-//     const pdfPath = path.join(__dirname, "uploads", code + ".pdf");
-//     const metaPath = pdfPath + ".json";
+    const pdfPath = path.join(__dirname, "uploads", code + ".pdf");
+    const metaPath = pdfPath + ".json";
 
-//     if (!fs.existsSync(pdfPath)) {
-//         return res.status(404).send("File not found");
-//     }
-
-
-//     res.sendFile(pdfPath, (err) => {
-//         if (err) {
-//             console.log("Error sending file:", err);
-//         } else {
-//             console.log("File sent, deleting...");
-
-
-//             try {
-//                 setTimeout(() => {
-//                     if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-//                     if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
-//                 }, 10000);
-//             } catch (e) {
-//                 console.log("Delete error:", e);
-//             }
-//         }
-//     });
-// });
-
-
-app.get("/print/:code", async (req, res) => {
-    try {
-        const code = req.params.code;
-
-        // 🔥 download file from cloud
-        const response = await fetch(`https://YOUR-RENDER-URL.onrender.com/file/${code}`);
-
-        if (!response.ok) {
-            return res.status(404).send("File not found or expired");
-        }
-
-        const buffer = await response.arrayBuffer();
-
-        // save temporarily on local PC
-        const tempPath = path.join(__dirname, `${code}.pdf`);
-        fs.writeFileSync(tempPath, Buffer.from(buffer));
-
-        // 🔥 print locally (NO PREVIEW)
-        await print(tempPath);
-
-        // delete after print
-        fs.unlinkSync(tempPath);
-
-        res.send("Printed successfully");
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Print failed");
+    if (!fs.existsSync(pdfPath)) {
+        return res.status(404).send("File not found");
     }
+
+
+    res.sendFile(pdfPath, (err) => {
+        if (err) {
+            console.log("Error sending file:", err);
+        } else {
+            console.log("File sent, deleting...");
+
+
+            try {
+                setTimeout(() => {
+                    if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+                    if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
+                }, 10000);
+            } catch (e) {
+                console.log("Delete error:", e);
+            }
+        }
+    });
 });
+
+
+
+// app.get("/print/:code", async (req, res) => {
+//     try {
+//         const code = req.params.code;
+
+//         const pdfPath = path.join(__dirname, "uploads", code + ".pdf");
+
+//         if (!fs.existsSync(pdfPath)) {
+//             return res.status(404).send("File not found");
+//         }
+
+//         // 🔥 DIRECT PRINT (NO PREVIEW)
+//         await print(pdfPath);
+
+//         // delete after print
+//         fs.unlinkSync(pdfPath);
+
+//         res.send("Printed successfully");
+
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).send("Print failed");
+//     }
+// });
 
 app.use(express.static(path.join(__dirname, "frontend")));
 
