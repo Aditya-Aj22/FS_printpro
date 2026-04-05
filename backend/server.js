@@ -14,8 +14,6 @@ const PORT = process.env.PORT || 3000;
 
 app.set("trust proxy", 1);
 
-
-
 app.use(cors());
 const uploadLimiter = rateLimit({
     windowMs: 12 * 60 * 60 * 1000,
@@ -25,7 +23,7 @@ const uploadLimiter = rateLimit({
 
 
 const upload = multer({
-    dest: "uploads/",
+    dest: path.join(__dirname, "../uploads"),
     limits: { fileSize: 10 * 1024 * 1024 }
 });
 
@@ -40,7 +38,7 @@ app.post("/upload", uploadLimiter, upload.single("file"), (req, res) => {
     try {
         const code = generateCode();
         console.log("Upload hit from IP:", req.ip);
-        const pdfPath = path.join(__dirname, "uploads", code + ".pdf");
+        const pdfPath = path.join(__dirname, "../uploads", code + ".pdf");
         const metaPath = pdfPath + ".json";
 
         fs.renameSync(req.file.path, pdfPath);
@@ -61,7 +59,7 @@ app.post("/upload", uploadLimiter, upload.single("file"), (req, res) => {
 app.get("/file/:code", (req, res) => {
     const code = req.params.code;
 
-    const pdfPath = path.join(__dirname, "uploads", code + ".pdf");
+    const pdfPath = path.join(__dirname, "../uploads", code + ".pdf");
     const metaPath = pdfPath + ".json";
 
     if (!fs.existsSync(pdfPath)) {
@@ -114,21 +112,21 @@ app.get("/file/:code", (req, res) => {
 //     }
 // });
 
-app.use(express.static(path.join(__dirname, "frontend")));
+app.use(express.static(path.join(__dirname, "../frontend")));
 
 setInterval(() => {
-    const files = fs.readdirSync("uploads");
+    const files = fs.readdirSync("../uploads");
 
     files.forEach(file => {
         if (file.endsWith(".json")) {
-            const metaPath = path.join("uploads", file);
+            const metaPath = path.join("../uploads", file);
             const meta = JSON.parse(fs.readFileSync(metaPath));
 
             if (Date.now() > meta.expiryTime) {
                 const pdfFile = file.replace(".pdf.json", ".pdf");
 
                 fs.unlinkSync(metaPath);
-                fs.unlinkSync(path.join("uploads", pdfFile));
+                fs.unlinkSync(path.join("../uploads", pdfFile));
 
             }
         }
