@@ -125,6 +125,7 @@ async function merge() {
 
         const url = URL.createObjectURL(blob);
         window.open(url);
+        // fileList.innerHTML = '';
 
     } catch (err) {
         console.error(err);
@@ -288,38 +289,8 @@ async function uploadFile(name) {
     const data = await res.json();
     alert("Your Print Code: " + data.code + " is valid for only 30min ,take a print before that!!");
 }
-//this is the function that sent the get request to print with user [preview]
+// this is the function that sent the get request to print with user [preview]
 
-// async function getFile() {
-//     const code = document.getElementById("codeInput").value;
-
-//     if (!code) {
-//         alert("Enter code");
-//         return;
-//     }
-//     try {
-        
-//         const res = await fetch(`/file/${code}`);
-//         if (!res.ok) throw new Error("File not found or expired");
-
-//         const blob = await res.blob();      
-//         const url = URL.createObjectURL(blob);
-
-//         window.open(url, "_blank");
-
-//         setTimeout(() => {
-//             URL.revokeObjectURL(url);
-//         }, 1 * 60 * 1000); 
-
-//     } catch (err) {
-//         console.error(err);
-//         alert("Failed to load PDF for preview");
-//     }
-// }
-
-
-
-// for user in college!!
 async function getFile() {
     const code = document.getElementById("codeInput").value;
 
@@ -327,42 +298,72 @@ async function getFile() {
         alert("Enter code");
         return;
     }
-
-     try {
-       
+    try {
+        
         const res = await fetch(`/file/${code}`);
         if (!res.ok) throw new Error("File not found or expired");
-        const pdfBlob = await res.blob();
 
+        const blob = await res.blob();      
+        const url = URL.createObjectURL(blob);
 
-        const url = URL.createObjectURL(pdfBlob);
+        window.open(url, "_blank");
 
-      
-        const iframe = document.createElement("iframe");
-        iframe.style.position = "fixed";
-        iframe.style.width = "0";
-        iframe.style.height = "0";
-        iframe.style.border = "none";
-        iframe.src = url;
-
-       
-        iframe.onload = () => {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-
-            setTimeout(() => {
-                URL.revokeObjectURL(url);
-                iframe.remove();
-            }, 1000);
-        };
-
-        document.body.appendChild(iframe);
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 1 * 60 * 1000); 
 
     } catch (err) {
         console.error(err);
-        alert("Print failed: " + err.message);
+        alert("Failed to load PDF for preview");
     }
 }
+
+
+
+// for user in college!!
+// async function getFile() {
+//     const code = document.getElementById("codeInput").value;
+
+//     if (!code) {
+//         alert("Enter code");
+//         return;
+//     }
+
+//      try {
+       
+//         const res = await fetch(`/file/${code}`);
+//         if (!res.ok) throw new Error("File not found or expired");
+//         const pdfBlob = await res.blob();
+
+
+//         const url = URL.createObjectURL(pdfBlob);
+
+      
+//         const iframe = document.createElement("iframe");
+//         iframe.style.position = "fixed";
+//         iframe.style.width = "0";
+//         iframe.style.height = "0";
+//         iframe.style.border = "none";
+//         iframe.src = url;
+
+       
+//         iframe.onload = () => {
+//             iframe.contentWindow.focus();
+//             iframe.contentWindow.print();
+
+//             setTimeout(() => {
+//                 URL.revokeObjectURL(url);
+//                 iframe.remove();
+//             }, 1000);
+//         };
+
+//         document.body.appendChild(iframe);
+
+//     } catch (err) {
+//         console.error(err);
+//         alert("Print failed: " + err.message);
+//     }
+// }
 
 
 
