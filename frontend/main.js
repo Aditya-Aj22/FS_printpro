@@ -2,6 +2,10 @@
 const fileInput = document.getElementById('files');
 const fileList = document.getElementById('fileList');
 
+const showLoad = () => document.getElementById('loader').classList.remove('hidden');
+const hideLoad = () => document.getElementById('loader').classList.add('hidden');
+
+
 if (!navigator.storage || !navigator.storage.getDirectory) {
     alert("Your browser doesn't fully support file storage. Please use Chrome for best experience.");
 }
@@ -28,6 +32,8 @@ fileInput.addEventListener('change', () => {
     });
 });
 
+
+
 // async function merge() {
 //     const formData = new FormData();
 //     Array.from(fileInput.files).forEach((file, index) => {
@@ -40,6 +46,8 @@ fileInput.addEventListener('change', () => {
 //     method:"post",
 //     body:formData
 // })
+
+
 function parsePages(input, totalPages) {
     if (!input || input.toLowerCase() === 'all') {
         return [...Array(totalPages).keys()];
@@ -87,6 +95,7 @@ function parsePages(input, totalPages) {
 }
 
 async function merge() {
+    showLoad();
     try {
         const mergepdf = await PDFLib.PDFDocument.create();
         const files = Array.from(fileInput.files);
@@ -120,7 +129,8 @@ async function merge() {
         const totalpages = mergepdf.getPageCount();
 
         // _Pages${}
-        await savePDF(`job_pages${totalpages}_${Date.now()}.pdf`, blob);
+        
+        await savePDF(`Job_pages${totalpages}_${Date.now()}.pdf`, blob);
         await showfiles();
 
         const url = URL.createObjectURL(blob);
@@ -130,8 +140,13 @@ async function merge() {
     } catch (err) {
         console.error(err);
         alert("Something went wrong while merging PDFs");
+    }finally{
+        hideLoad();
     }
+
 }
+
+
 
 /// old merge function
 // async function merge() {
@@ -171,6 +186,8 @@ async function merge() {
 
 
 // }
+
+
 
 async function savePDF(pdfname, blob) {
     const root = await navigator.storage.getDirectory();
@@ -257,39 +274,105 @@ async function deleteFile(name) {
     showfiles();
 }
 
+
+// old upload without option to copy code
+// async function uploadFile(name) {
+//     const root = await navigator.storage.getDirectory();
+//     const fileHandle = await root.getFileHandle(name);
+//     const file = await fileHandle.getFile();
+
+//     const formData = new FormData();
+//     formData.append("file", file);
+
+//     const res = await fetch("/upload", {
+//         method: "POST",
+//         body: formData
+//     });
+
+//     if (!res.ok) {
+//         const contentType = res.headers.get("content-type");
+
+//         let err;
+
+//         if (contentType && contentType.includes("application/json")) {
+//             const data = await res.json();
+//             err = data.message;
+//         } else {
+//             err = await res.text();
+//         }
+
+//         alert(err);
+//         return;
+//     }
+
+//     const data = await res.json();
+//     alert("Your Print Code: " + data.code + " is valid for only 30min ,take a print before that!!");
+// }
+//this is the function that sent the get request to print with user [preview]
+
+
 async function uploadFile(name) {
-    const root = await navigator.storage.getDirectory();
-    const fileHandle = await root.getFileHandle(name);
-    const file = await fileHandle.getFile();
 
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch("/upload", {
-        method: "POST",
-        body: formData
-    });
-
-    if (!res.ok) {
-        const contentType = res.headers.get("content-type");
-
-        let err;
-
-        if (contentType && contentType.includes("application/json")) {
-            const data = await res.json();
-            err = data.message;
-        } else {
-            err = await res.text();
+    showLoad();
+    try {
+        const root = await navigator.storage.getDirectory();
+        const fileHandle = await root.getFileHandle(name);
+        const file = await fileHandle.getFile();
+        
+        const formData = new FormData();
+        formData.append("file", file);
+        
+        const res = await fetch("/upload", { method: "POST", body: formData });
+        
+        if (!res.ok) {
+            const contentType = res.headers.get("content-type");
+            let err = (contentType && contentType.includes("application/json")) 
+            ? (await res.json()).message 
+            : await res.text();
+            alert(err);
+            return;
         }
-
-        alert(err);
-        return;
+        
+        const data = await res.json();
+        
+        // --- NEW LOGIC: Update the UI instead of just alerting ---
+        const copySection = document.getElementById("copySection");
+        const display = document.getElementById("generatedCodeDisplay");
+        
+        display.innerText = data.code; // Set the code from server
+        copySection.classList.remove("hidden"); // Show the card
+        
+        // Smooth scroll to the code so the user sees it
+        copySection.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+        console.error(error);
+        alert("Something went wrong. The server might be waking up.");
+    }finally{
+        hideLoad();
     }
-
-    const data = await res.json();
-    alert("Your Print Code: " + data.code + " is valid for only 30min ,take a print before that!!");
 }
-// this is the function that sent the get request to print with user [preview]
+
+// this function is created by AI
+function copyToClipboard() {
+    const code = document.getElementById("generatedCodeDisplay").innerText;
+    const btn = document.getElementById("copyBtn");
+
+    navigator.clipboard.writeText(code).then(() => {
+        // 1. Change Text & Color Immediately
+        const originalText = btn.innerText;
+        btn.innerText = "Copied! ✓";
+        btn.style.backgroundColor = "#22c55e"; // Success Green (Tailwind green-500)
+
+        // 2. Revert back after 2 seconds
+        setTimeout(() => {
+            btn.innerText = originalText;
+            btn.style.backgroundColor = ""; // Goes back to the CSS class color (blue-600)
+        }, 2000);
+    }).catch(err => {
+        console.error('Copy failed', err);
+    });
+}
+
 
 async function getFile() {
     const code = document.getElementById("codeInput").value;
@@ -298,8 +381,9 @@ async function getFile() {
         alert("Enter code");
         return;
     }
+    showLoad();
     try {
-        
+    //   await  new Promise(r=>setTimeout(r,3000))
         const res = await fetch(`/file/${code}`);
         if (!res.ok) throw new Error("File not found or expired");
 
@@ -315,6 +399,8 @@ async function getFile() {
     } catch (err) {
         console.error(err);
         alert("Failed to load PDF for preview");
+    }finally{
+        hideLoad();
     }
 }
 

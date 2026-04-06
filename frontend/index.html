@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,11 @@
 </head>
 
 <body class="bg-gray-100 text-gray-800">
+
+  <div id="loader" class="hidden fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+  <div class="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+  <p class="text-blue-600 font-bold animate-pulse uppercase tracking-widest text-xs">Processing... Please Wait</p>
+</div>
 
   <div class="max-w-md mx-auto p-4">
 
@@ -22,19 +28,11 @@
     <div class="bg-white rounded-2xl shadow p-4 mb-4">
       <h2 class="text-lg font-semibold mb-3">Merge & Save</h2>
 
-      <input 
-        type="file" 
-        id="files" 
-        multiple 
-        accept="application/pdf"
-        class="w-full text-sm border rounded-lg p-2 mb-3"
-      >
+      <input type="file" id="files" multiple accept="application/pdf" class="w-full text-sm border rounded-lg p-2 mb-3">
 
       <div id="fileList" class="space-y-3"></div>
 
-      <button 
-        onclick="merge()" 
-        class="w-full bg-blue-500 text-white py-2 rounded-lg mt-3 active:scale-95">
+      <button onclick="merge()" class="w-full bg-blue-500 text-white py-2 rounded-lg mt-3 active:scale-95">
         Merge & Save
       </button>
     </div>
@@ -43,9 +41,7 @@
     <div class="bg-white rounded-2xl shadow p-4 mb-4">
       <div class="flex justify-between items-center mb-3">
         <h2 class="text-lg font-semibold">Saved Files</h2>
-        <button 
-          onclick="showfiles()" 
-          class="text-sm bg-gray-200 px-3 py-1 rounded-lg">
+        <button onclick="showfiles()" class="text-sm bg-gray-200 px-3 py-1 rounded-lg">
           Refresh
         </button>
       </div>
@@ -58,19 +54,31 @@
       <h2 class="text-lg font-semibold mb-3">Print from Code</h2>
 
       <div class="flex gap-2">
-        <input 
-          type="text" 
-          id="codeInput" 
-          placeholder="Enter code"
-          class="flex-1 border rounded-lg p-2 text-sm"
-        >
-        <button 
-          onclick="getFile()" 
-          class="bg-green-500 text-white px-4 rounded-lg active:scale-95">
-          Get
+        <input type="text" id="codeInput" placeholder="Enter code" class="flex-1 border rounded-lg p-2 text-sm">
+        <button onclick="getFile()" class="bg-green-500 text-white px-4 rounded-lg active:scale-95">
+          Get PDF
         </button>
       </div>
     </div>
+
+<!-- Copy Generated Code Card -->
+<div id="copySection" class="bg-white rounded-2xl shadow  p-4 mt-4 hidden border-2 border-blue-100">
+  <div class="flex justify-between items-center mb-3">
+    <h2 class="text-lg font-semibold text-blue-800">Print Code Generated!</h2>
+    <span class="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-full font-bold animate-pulse">Expires in 30m</span>
+  </div>
+  
+  <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-4">
+    <span id="generatedCodeDisplay" class="flex-1 font-mono text-3xl font-black text-blue-700 tracking-tighter text-center">
+      000000
+    </span>
+    <!-- No SVG, just a simple Emoji/Text button -->
+    <button onclick="copyToClipboard()" id="copyBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold transition-all duration-200 active:scale-90 shadow-md">
+      Copy 📋
+    </button>
+  </div>
+</div>
+
 
   </div>
 
@@ -78,4 +86,5 @@
   <script src="main.js"></script>
 
 </body>
+
 </html>

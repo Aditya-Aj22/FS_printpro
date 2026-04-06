@@ -57,7 +57,7 @@ app.post("/upload", uploadLimiter, upload.single("file"), (req, res) => {
 
 // these is the function to give preview before print (user has access)
 app.get("/file/:code", (req, res) => {
-    const code = req.params.code;
+    const code = req.params.code.toUpperCase();
 
     const pdfPath = path.join(__dirname, "../uploads", code + ".pdf");
     const metaPath = pdfPath + ".json";
@@ -132,6 +132,8 @@ setInterval(() => {
         }
     });
 }, 5 * 60 * 1000);
+
+
 
 app.listen(PORT, () => {
     console.log("Server running on http://localhost:" + PORT);
