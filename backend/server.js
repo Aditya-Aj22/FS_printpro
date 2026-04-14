@@ -114,6 +114,10 @@ app.get("/file/:code", (req, res) => {
 
 app.use(express.static(path.join(__dirname, "../frontend")));
 
+app.get('/ping', (req,res)=>{
+    res.status(200).send('OK');
+});
+
 setInterval(() => {
     const files = fs.readdirSync("../uploads");
 
