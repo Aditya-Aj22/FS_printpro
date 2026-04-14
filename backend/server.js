@@ -119,7 +119,7 @@ app.get('/ping', (req,res)=>{
 });
 
 setInterval(() => {
-    const files = fs.readdirSync("../uploads");
+    const files = fs.readdirSync(path.join(__dirname,'../uploads'));
 
     files.forEach(file => {
         if (file.endsWith(".json")) {
