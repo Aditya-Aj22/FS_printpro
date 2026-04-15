@@ -335,6 +335,7 @@ async function uploadFile(name) {
         
         const data = await res.json();
         
+        
         // --- NEW LOGIC: Update the UI instead of just alerting ---
         const copySection = document.getElementById("copySection");
         const display = document.getElementById("generatedCodeDisplay");

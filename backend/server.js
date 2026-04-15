@@ -67,23 +67,28 @@ app.get("/file/:code", (req, res) => {
     }
 
 
-    res.sendFile(pdfPath, (err) => {
-        if (err) {
-            console.log("Error sending file:", err);
-        } else {
-            console.log("File sent, deleting...");
+    res.setHeader("Content-Type", "application/pdf");
 
+    const stream = fs.createReadStream(pdfPath);
 
-            try {
-                setTimeout(() => {
-                    if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-                    if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
-                }, 10000);
-            } catch (e) {
-                console.log("Delete error:", e);
-            }
+    // delete ONLY after response is fully done
+    res.on("finish", () => {
+        console.log("Download complete, deleting file...");
+
+        try {
+            if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+            if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
+        } catch (err) {
+            console.log("Delete error:", err);
         }
     });
+
+    stream.on("error", (err) => {
+        console.log("Stream error:", err);
+        res.status(500).end("Error reading file");
+    });
+
+    stream.pipe(res);
 });
 
 
@@ -123,14 +128,14 @@ setInterval(() => {
 
     files.forEach(file => {
         if (file.endsWith(".json")) {
-            const metaPath = path.join("../uploads", file);
+            const metaPath = path.join(__dirname,"../uploads", file);
             const meta = JSON.parse(fs.readFileSync(metaPath));
 
             if (Date.now() > meta.expiryTime) {
                 const pdfFile = file.replace(".pdf.json", ".pdf");
 
                 fs.unlinkSync(metaPath);
-                fs.unlinkSync(path.join("../uploads", pdfFile));
+                fs.unlinkSync(path.join(__dirname,"../uploads", pdfFile));
 
             }
         }
