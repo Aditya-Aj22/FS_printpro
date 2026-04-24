@@ -65,9 +65,11 @@ app.get("/file/:code", (req, res) => {
     if (!fs.existsSync(pdfPath)) {
         return res.status(404).send("File not found");
     }
-
+    const stat=fs.statSync(pdfPath);
 
     res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Dispositin","attachment; filename= file.pdf")
+    res.setHeader("Content-Length",stat.size);
 
     const stream = fs.createReadStream(pdfPath);
 
