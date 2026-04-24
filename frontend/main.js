@@ -374,7 +374,7 @@ function copyToClipboard() {
     });
 }
 
-async function getFile() {
+function getFile() {
     const code = document.getElementById("codeInput").value.trim();
 
     if (!code) {
@@ -382,110 +382,47 @@ async function getFile() {
         return;
     }
 
-    showLoad();
+    const tab = window.open(`/file/${code}`, "_blank");
 
-    try {
-        // 🔍 Step 1: check if file exists (HEAD request = fast, no download)
-        const res = await fetch(`/file/${code}`, {
-            method: "HEAD"
-        });
-
-        if (!res.ok) {
-            throw new Error("File not found or expired");
-        }
-
-        // ✅ Step 2: open ONLY if file exists
-        const tab = window.open(`/file/${code}`, "_blank");
-
-        if (!tab) {
-            alert("Popup blocked! Allow popups.");
-        }
-
-    } catch (err) {
-        alert("File not found or expired");
-    } finally {
-        hideLoad();
+    if (!tab) {
+        alert("Popup blocked! Allow popups. OR File might be deleted kindlyreupload then fetch it!!");
     }
 }
 
 // async function getFile() {
-//     const code = document.getElementById("codeInput").value;
+//     const code = document.getElementById("codeInput").value.trim();
 
 //     if (!code) {
 //         alert("Enter code");
 //         return;
 //     }
+
 //     showLoad();
+
 //     try {
-//     //   await  new Promise(r=>setTimeout(r,3000))
-//         const res = await fetch(`/file/${code}`);
-//         if (!res.ok) throw new Error("File not found or expired");
+//         // 🔍 Step 1: check if file exists (HEAD request = fast, no download)
+//         const res = await fetch(`/file/${code}`, {
+//             method: "HEAD"
+//         });
 
-//         const blob = await res.blob();      
-//         const url = URL.createObjectURL(blob);
+//         if (!res.ok) {
+//             throw new Error("File not found or expired");
+//         }
 
-//     const newTab = window.open( url, "_blank");
+//         // ✅ Step 2: open ONLY if file exists
+//         const tab = window.open(`/file/${code}`, "_blank");
 
-//     if (!newTab) {
-//         alert("Popup blocked! Please allow popups.");
-//     }
-//         setTimeout(() => {
-//             URL.revokeObjectURL(url);
-//         }, 1 * 60 * 1000); 
+//         if (!tab) {
+//             alert("Popup blocked! Allow popups.");
+//         }
 
 //     } catch (err) {
-//         console.error(err);
-//         alert("Failed to load PDF for preview");
-//     }finally{
+//         alert("File not found or expired");
+//     } finally {
 //         hideLoad();
 //     }
 // }
 
-
-// for user in college!!
-// async function getFile() {
-//     const code = document.getElementById("codeInput").value;
-
-//     if (!code) {
-//         alert("Enter code");
-//         return;
-//     }
-
-//      try {
-       
-//         const res = await fetch(`/file/${code}`);
-//         if (!res.ok) throw new Error("File not found or expired");
-//         const pdfBlob = await res.blob();
-
-
-//         const url = URL.createObjectURL(pdfBlob);
-
-      
-//         const iframe = document.createElement("iframe");
-//         iframe.style.position = "fixed";
-//         iframe.style.width = "0";
-//         iframe.style.height = "0";
-//         iframe.style.border = "none";
-//         iframe.src = url;
-
-       
-//         iframe.onload = () => {
-//             iframe.contentWindow.focus();
-//             iframe.contentWindow.print();
-
-//             setTimeout(() => {
-//                 URL.revokeObjectURL(url);
-//                 iframe.remove();
-//             }, 1000);
-//         };
-
-//         document.body.appendChild(iframe);
-
-//     } catch (err) {
-//         console.error(err);
-//         alert("Print failed: " + err.message);
-//     }
-// }
 
 
 
