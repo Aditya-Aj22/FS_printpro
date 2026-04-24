@@ -374,39 +374,72 @@ function copyToClipboard() {
     });
 }
 
-
 async function getFile() {
-    const code = document.getElementById("codeInput").value;
+    const code = document.getElementById("codeInput").value.trim();
 
     if (!code) {
         alert("Enter code");
         return;
     }
+
     showLoad();
+
     try {
-    //   await  new Promise(r=>setTimeout(r,3000))
-        const res = await fetch(`/file/${code}`);
-        if (!res.ok) throw new Error("File not found or expired");
+        // 🔍 Step 1: check if file exists (HEAD request = fast, no download)
+        const res = await fetch(`/file/${code}`, {
+            method: "HEAD"
+        });
 
-        const blob = await res.blob();      
-        const url = URL.createObjectURL(blob);
+        if (!res.ok) {
+            throw new Error("File not found or expired");
+        }
 
-    const newTab = window.open( url, "_blank");
+        // ✅ Step 2: open ONLY if file exists
+        const tab = window.open(`/file/${code}`, "_blank");
 
-    if (!newTab) {
-        alert("Popup blocked! Please allow popups.");
-    }
-        setTimeout(() => {
-            URL.revokeObjectURL(url);
-        }, 1 * 60 * 1000); 
+        if (!tab) {
+            alert("Popup blocked! Allow popups.");
+        }
 
     } catch (err) {
-        console.error(err);
-        alert("Failed to load PDF for preview");
-    }finally{
+        alert("File not found or expired");
+    } finally {
         hideLoad();
     }
 }
+
+// async function getFile() {
+//     const code = document.getElementById("codeInput").value;
+
+//     if (!code) {
+//         alert("Enter code");
+//         return;
+//     }
+//     showLoad();
+//     try {
+//     //   await  new Promise(r=>setTimeout(r,3000))
+//         const res = await fetch(`/file/${code}`);
+//         if (!res.ok) throw new Error("File not found or expired");
+
+//         const blob = await res.blob();      
+//         const url = URL.createObjectURL(blob);
+
+//     const newTab = window.open( url, "_blank");
+
+//     if (!newTab) {
+//         alert("Popup blocked! Please allow popups.");
+//     }
+//         setTimeout(() => {
+//             URL.revokeObjectURL(url);
+//         }, 1 * 60 * 1000); 
+
+//     } catch (err) {
+//         console.error(err);
+//         alert("Failed to load PDF for preview");
+//     }finally{
+//         hideLoad();
+//     }
+// }
 
 
 // for user in college!!

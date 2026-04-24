@@ -98,6 +98,17 @@ app.post("/upload", uploadLimiter, upload.single("file"), (req, res) => {
 //     stream.pipe(res);
 // });
 
+app.head("/file/:code", (req, res) => {
+    const code = req.params.code.toUpperCase();
+    const pdfPath = path.join(__dirname, "../uploads", code + ".pdf");
+
+    if (!fs.existsSync(pdfPath)) {
+        return res.sendStatus(404);
+    }
+
+    return res.sendStatus(200);
+});
+
 app.get("/file/:code", (req, res) => {
     const code = req.params.code.toUpperCase();
 
