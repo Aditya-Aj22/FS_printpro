@@ -391,8 +391,11 @@ async function getFile() {
         const blob = await res.blob();      
         const url = URL.createObjectURL(blob);
 
-        window.open(url, "_blank");
+    const newTab = window.open(`/file/${code}`, "_blank");
 
+    if (!newTab) {
+        alert("Popup blocked! Please allow popups.");
+    }
         setTimeout(() => {
             URL.revokeObjectURL(url);
         }, 1 * 60 * 1000); 
