@@ -74,16 +74,16 @@ app.get("/file/:code", (req, res) => {
     const stream = fs.createReadStream(pdfPath);
 
     // delete ONLY after response is fully done
-    res.on("finish", () => {
-        console.log("Download complete, deleting file...");
+    // res.on("finish", () => {
+    //     console.log("Download complete, deleting file...");
 
-        try {
-            if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-            if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
-        } catch (err) {
-            console.log("Delete error:", err);
-        }
-    });
+    //     try {
+    //         if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+    //         if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
+    //     } catch (err) {
+    //         console.log("Delete error:", err);
+    //     }
+    // });
 
     stream.on("error", (err) => {
         console.log("Stream error:", err);
