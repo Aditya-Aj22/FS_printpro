@@ -34,7 +34,7 @@ const upload = multer({
 
 
 function generateCode() {
-    return crypto.randomBytes(3).toString("hex").toUpperCase();
+    return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
 }
 
 

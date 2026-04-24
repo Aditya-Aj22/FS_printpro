@@ -391,7 +391,7 @@ async function getFile() {
         const blob = await res.blob();      
         const url = URL.createObjectURL(blob);
 
-    const newTab = window.open(`/file/${code}`, "_blank");
+    const newTab = window.open( url, "_blank");
 
     if (!newTab) {
         alert("Popup blocked! Please allow popups.");
@@ -407,7 +407,6 @@ async function getFile() {
         hideLoad();
     }
 }
-
 
 
 // for user in college!!
