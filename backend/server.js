@@ -14,6 +14,11 @@ const PORT = process.env.PORT || 3000;
 
 app.set("trust proxy", 1);
 
+app.use((req, res, next) => {
+    res.setTimeout(5 * 60 * 1000); // 5 minutes
+    next();
+});
+
 app.use(cors());
 const uploadLimiter = rateLimit({
     windowMs: 12 * 60 * 60 * 1000,
@@ -56,44 +61,68 @@ app.post("/upload", uploadLimiter, upload.single("file"), (req, res) => {
 });
 
 // these is the function to give preview before print (user has access)
+// app.get("/file/:code", (req, res) => {
+//     const code = req.params.code.toUpperCase();
+
+//     const pdfPath = path.join(__dirname, "../uploads", code + ".pdf");
+//     const metaPath = pdfPath + ".json";
+
+//     if (!fs.existsSync(pdfPath)) {
+//         return res.status(404).send("File not found");
+//     }
+//     const stat=fs.statSync(pdfPath);
+
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader("Content-Dispositin","attachment; filename= file.pdf")
+//     res.setHeader("Content-Length",stat.size);
+
+//     const stream = fs.createReadStream(pdfPath);
+
+//     // delete ONLY after response is fully done
+//     // res.on("finish", () => {
+//     //     console.log("Download complete, deleting file...");
+
+//     //     try {
+//     //         if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+//     //         if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
+//     //     } catch (err) {
+//     //         console.log("Delete error:", err);
+//     //     }
+//     // });
+
+//     stream.on("error", (err) => {
+//         console.log("Stream error:", err);
+//         res.status(500).end("Error reading file");
+//     });
+
+//     stream.pipe(res);
+// });
+
 app.get("/file/:code", (req, res) => {
     const code = req.params.code.toUpperCase();
 
     const pdfPath = path.join(__dirname, "../uploads", code + ".pdf");
-    const metaPath = pdfPath + ".json";
 
     if (!fs.existsSync(pdfPath)) {
         return res.status(404).send("File not found");
     }
-    const stat=fs.statSync(pdfPath);
 
+    // Headers (important)
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Dispositin","attachment; filename= file.pdf")
-    res.setHeader("Content-Length",stat.size);
+    res.setHeader("Content-Disposition", `inline; filename="${code}.pdf"`);
 
-    const stream = fs.createReadStream(pdfPath);
-
-    // delete ONLY after response is fully done
-    // res.on("finish", () => {
-    //     console.log("Download complete, deleting file...");
-
-    //     try {
-    //         if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-    //         if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
-    //     } catch (err) {
-    //         console.log("Delete error:", err);
-    //     }
-    // });
-
-    stream.on("error", (err) => {
-        console.log("Stream error:", err);
-        res.status(500).end("Error reading file");
+    // Send file (handles streaming internally)
+    res.sendFile(pdfPath, (err) => {
+        if (err) {
+            console.log("SendFile error:", err);
+            if (!res.headersSent) {
+                res.status(500).send("Error sending file");
+            }
+        } else {
+            console.log("File served:", code);
+        }
     });
-
-    stream.pipe(res);
 });
-
-
 
 // app.get("/print/:code", async (req, res) => {
 //     try {
