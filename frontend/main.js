@@ -376,11 +376,21 @@ function copyToClipboard() {
 
 function getFile() {
     const code = document.getElementById("codeInput").value.trim();
-
+    
     if (!code) {
         alert("Enter code");
         return;
     }
+      if (!/^\d+$/.test(code)) {
+        alert("Code must contain only numbers ");
+        document.getElementById("codeInput").value = '';
+        return;
+    }
+    if(code.length!=6){
+        alert("Code is of 6 digits")
+        return;
+    }
+    
 
     const tab = window.open(`/file/${code}`, "_blank");
 
