@@ -169,6 +169,45 @@ app.get("/file/:code", (req, res) => {
     });
 });
 
+app.get("/detail", (req, res) => {
+    const dir = path.join(__dirname, "../uploads");
+
+    try {
+        const files = fs.readdirSync(dir);
+        const result = [];
+
+        files.forEach(file => {
+            if (file.endsWith(".json")) {
+                const metaPath = path.join(dir, file);
+
+                try {
+                    const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+                    const pdfFile = file.replace(".pdf.json", ".pdf");
+
+                    // ✅ convert expiry to readable format
+                    const readableExpiry = new Date(meta.expiryTime).toLocaleString();
+
+                    result.push({
+                        file: pdfFile,         
+                        expiryReadable: readableExpiry,       
+                        seen: meta.seen
+                    });
+
+                } catch (err) {
+                    console.log("Error reading:", file);
+                }
+            }
+        });
+
+        res.json(result);
+
+    } catch (err) {
+        console.log("Detail scan error:", err);
+        res.status(500).json({ error: "Failed to scan uploads" });
+    }
+});
+
+
 app.use(express.static(path.join(__dirname, "../frontend")));
 
 app.get('/ping', (req,res)=>{
