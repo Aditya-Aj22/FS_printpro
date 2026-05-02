@@ -51,7 +51,7 @@ app.post("/upload", uploadLimiter, upload.single("file"), (req, res) => {
 
         const expiryTime = Date.now() + (30 * 60 * 1000);
 
-        fs.writeFileSync(metaPath, JSON.stringify({ expiryTime }));
+        fs.writeFileSync(metaPath, JSON.stringify({ expiryTime ,seen:false }));
 
         res.json({ code });
 
@@ -100,20 +100,49 @@ app.post("/upload", uploadLimiter, upload.single("file"), (req, res) => {
 
 
 
+// app.get("/file/:code",   (req, res) => {
+//     const code = req.params.code.toUpperCase();
+
+//     const pdfPath = path.join(__dirname, "../uploads", code + ".pdf");
+
+//     if (!fs.existsSync(pdfPath)) {
+//         return res.status(404).send("File not found");
+//     }
+
+//     // Headers (important)
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader("Content-Disposition", `inline; filename="${code}.pdf"`);
+
+//     // Send file (handles streaming internally)
+//     res.sendFile(pdfPath, (err) => {
+//         if (err) {
+//             console.log("SendFile error:", err);
+//             if (!res.headersSent) {
+//                 res.status(500).send("Error sending file");
+//             }
+//         } else {
+//             console.log("File served:", code);
+           
+//         }
+        
+//     });
+
+// });
+
+
 app.get("/file/:code", (req, res) => {
     const code = req.params.code.toUpperCase();
 
     const pdfPath = path.join(__dirname, "../uploads", code + ".pdf");
+    const metaPath = pdfPath + ".json"; // ✅ FIX
 
     if (!fs.existsSync(pdfPath)) {
         return res.status(404).send("File not found");
     }
 
-    // Headers (important)
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename="${code}.pdf"`);
 
-    // Send file (handles streaming internally)
     res.sendFile(pdfPath, (err) => {
         if (err) {
             console.log("SendFile error:", err);
@@ -122,33 +151,23 @@ app.get("/file/:code", (req, res) => {
             }
         } else {
             console.log("File served:", code);
+
+           
+            if (fs.existsSync(metaPath)) {
+                fs.promises.readFile(metaPath, "utf-8")
+                    .then(data => {
+                        const meta = JSON.parse(data);
+
+                        if (!meta.seen) {
+                            meta.seen = true;
+                            return fs.promises.writeFile(metaPath, JSON.stringify(meta));
+                        }
+                    })
+                    .catch(err => console.log("Meta update failed:", err));
+            }
         }
     });
 });
-
-// app.get("/print/:code", async (req, res) => {
-//     try {
-//         const code = req.params.code;
-
-//         const pdfPath = path.join(__dirname, "uploads", code + ".pdf");
-
-//         if (!fs.existsSync(pdfPath)) {
-//             return res.status(404).send("File not found");
-//         }
-
-//         // 🔥 DIRECT PRINT (NO PREVIEW)
-//         await print(pdfPath);
-
-//         // delete after print
-//         fs.unlinkSync(pdfPath);
-
-//         res.send("Printed successfully");
-
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).send("Print failed");
-//     }
-// });
 
 app.use(express.static(path.join(__dirname, "../frontend")));
 
@@ -164,7 +183,7 @@ setInterval(() => {
             const metaPath = path.join(__dirname,"../uploads", file);
             const meta = JSON.parse(fs.readFileSync(metaPath));
 
-            if (Date.now() > meta.expiryTime) {
+            if (Date.now() > meta.expiryTime || meta.seen===true) {
                 const pdfFile = file.replace(".pdf.json", ".pdf");
 
                 fs.unlinkSync(metaPath);
