@@ -22,7 +22,7 @@ app.use((req, res, next) => {
 app.use(cors());
 const uploadLimiter = rateLimit({
     windowMs: 12 * 60 * 60 * 1000,
-    max: 5,
+    max: 100,
     message: "Too many uploads, try again later"
 });
 
