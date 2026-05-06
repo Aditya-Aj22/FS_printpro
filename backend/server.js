@@ -29,7 +29,7 @@ app.get("/get-upload-auth", (req, res) => {
         const paramsToSign = {
     timestamp,
     folder: "user_uploads/print_queue",
-    resource_type: "raw"
+    
 };
 
         const signature = cloudinary.utils.api_sign_request(
