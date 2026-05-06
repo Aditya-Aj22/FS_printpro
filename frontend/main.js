@@ -313,49 +313,45 @@ async function uploadFile(name) {
     showLoad();
 
     try {
-        // 1. Get the file from OPFS (Your existing logic)
         const root = await navigator.storage.getDirectory();
         const fileHandle = await root.getFileHandle(name);
         const file = await fileHandle.getFile();
 
-        // 2. Get Signature from your server
         const authRes = await fetch("/get-upload-auth");
-        const { signature, timestamp, apiKey, cloudName } = await authRes.json();
+        const { signature, timestamp, apiKey } = await authRes.json();
 
-        // 3. Prepare Cloudinary Form Data
         const formData = new FormData();
         formData.append("file", file);
         formData.append("api_key", apiKey);
         formData.append("timestamp", timestamp);
         formData.append("signature", signature);
-        formData.append("upload_preset", "print-pdf"); // Must match your preset name
-        formData.append("folder", "user_uploads/print_queue"); // Must match server folder
+        formData.append("upload_preset", "print-pdf");
+        formData.append("folder", "user_uploads/print_queue");
 
-        // 4. Upload directly to Cloudinary
-        const uploadRes = await fetch(`https://cloudinary.com${cloudName}/upload`, {
+        // THIS IS THE EXACT URL FOR YOUR ACCOUNT:
+        const uploadRes = await fetch("https://cloudinary.com", {
             method: "POST",
             body: formData
         });
 
-        if (!uploadRes.ok) throw new Error("Cloudinary upload failed");
+        if (!uploadRes.ok) {
+            const errorData = await uploadRes.json();
+            throw new Error(errorData.error.message);
+        }
 
         const uploadData = await uploadRes.json();
-        const cloudinaryUrl = uploadData.secure_url; // This is the direct link to the PDF
-
-        // 5. Save to your fileMap (Passing the URL now, not just the name)
+        
         const codeRes = await fetch("/save-file", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                cloudinaryUrl: cloudinaryUrl
-            })
+            body: JSON.stringify({ cloudinaryUrl: uploadData.secure_url })
         });
 
         const data = await codeRes.json();
         document.getElementById("generatedCodeDisplay").innerText = data.code;
 
     } catch (err) {
-        console.error(err);
+        console.error("FULL ERROR:", err);
         alert("Upload failed: " + err.message);
     } finally {
         hideLoad();
