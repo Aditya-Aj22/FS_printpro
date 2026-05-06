@@ -24,13 +24,11 @@ function generateCode() { return crypto.randomInt(0, 1_000_000).toString().padSt
 // 3. New Endpoint: Generate Cloudinary Signature
 app.get("/get-upload-auth", (req, res) => {
     try {
-        const timestamp = Math.round(new Date().getTime() / 1000);
-        
-        // These MUST match exactly what you set in your Cloudinary Preset
+        const timestamp = Math.round(Date.now() / 1000);
+
         const paramsToSign = {
-            timestamp: timestamp,
-            upload_preset: "print-pdf", // Your preset name
-            folder: "user_uploads/print_queue" // Your preset folder
+            timestamp,
+            folder: "user_uploads/print_queue"
         };
 
         const signature = cloudinary.utils.api_sign_request(
@@ -44,11 +42,13 @@ app.get("/get-upload-auth", (req, res) => {
             apiKey: process.env.CLOUDINARY_API_KEY,
             cloudName: process.env.CLOUDINARY_CLOUD_NAME
         });
+
     } catch (err) {
         console.error(err);
-        res.status(500).send("Failed to generate signature");
+        res.status(500).send("Signature error");
     }
 });
+
 
 // 4. Save file reference (Now saving the URL instead of just filename)
 app.post("/save-file", (req, res) => {
