@@ -310,48 +310,102 @@ async function deleteFile(name) {
 // }
 //this is the function that sent the get request to print with user [preview]
 
-
 async function uploadFile(name) {
-
     showLoad();
+
     try {
         const root = await navigator.storage.getDirectory();
         const fileHandle = await root.getFileHandle(name);
         const file = await fileHandle.getFile();
-        
-        const formData = new FormData();
-        formData.append("file", file);
-        
-        const res = await fetch("/upload", { method: "POST", body: formData });
-        
-        if (!res.ok) {
-            const contentType = res.headers.get("content-type");
-            let err = (contentType && contentType.includes("application/json")) 
-            ? (await res.json()).message 
-            : await res.text();
-            alert(err);
-            return;
-        }
-        
+
+        // 1. Get upload URL
+        const res = await fetch("/get-upload-url");
         const data = await res.json();
-        
-        
-        // --- NEW LOGIC: Update the UI instead of just alerting ---
+
+        const fileName =  file.name;
+
+        // 2. Upload to B2
+        await fetch(data.uploadUrl, {
+            method: "POST",
+            headers: {
+                Authorization: data.authorizationToken,
+                "X-Bz-File-Name": encodeURIComponent(fileName),
+                "Content-Type": file.type,
+                "X-Bz-Content-Sha1": "do_not_verify"
+            },
+            body: file
+        });
+
+        // 3. Generate code
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // 4. Save mapping in backend
+        await fetch("/save-file", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code, fileName })
+        });
+
+        // UI
         const copySection = document.getElementById("copySection");
         const display = document.getElementById("generatedCodeDisplay");
-        
-        display.innerText = data.code; // Set the code from server
-        copySection.classList.remove("hidden"); // Show the card
-        
-        // Smooth scroll to the code so the user sees it
-        copySection.scrollIntoView({ behavior: 'smooth' });
-    } catch (error) {
-        console.error(error);
-        alert("Something went wrong. The server might be waking up.");
-    }finally{
+
+        display.innerText = code;
+        copySection.classList.remove("hidden");
+        copySection.scrollIntoView({ behavior: "smooth" });
+
+    } catch (err) {
+        console.error(err);
+        alert("Upload failed");
+    } finally {
         hideLoad();
     }
 }
+
+// async function uploadFile(name) {
+
+//     showLoad();
+//     try {
+//         const root = await navigator.storage.getDirectory();
+//         const fileHandle = await root.getFileHandle(name);
+//         const file = await fileHandle.getFile();
+        
+//         const formData = new FormData();
+//         formData.append("file", file);
+        
+//         const res = await fetch("/upload", { method: "POST", body: formData });
+        
+//         if (!res.ok) {
+//             const contentType = res.headers.get("content-type");
+//             let err = (contentType && contentType.includes("application/json")) 
+//             ? (await res.json()).message 
+//             : await res.text();
+//             alert(err);
+//             return;
+//         }
+        
+//         const data = await res.json();
+        
+        
+//         // --- NEW LOGIC: Update the UI instead of just alerting ---
+//         const copySection = document.getElementById("copySection");
+//         const display = document.getElementById("generatedCodeDisplay");
+        
+//         display.innerText = data.code; // Set the code from server
+//         copySection.classList.remove("hidden"); // Show the card
+        
+//         // Smooth scroll to the code so the user sees it
+//         copySection.scrollIntoView({ behavior: 'smooth' });
+//     } catch (error) {
+//         console.error(error);
+//         alert("Something went wrong. The server might be waking up.");
+//     }finally{
+//         hideLoad();
+//     }
+// }
+
+
+
 
 // this function is created by AI
 function copyToClipboard() {
