@@ -129,7 +129,7 @@ async function merge() {
         const totalpages = mergepdf.getPageCount();
 
         // _Pages${}
-        
+
         await savePDF(`Job_pages${totalpages}_${Date.now()}.pdf`, blob);
         await showfiles();
 
@@ -140,7 +140,7 @@ async function merge() {
     } catch (err) {
         console.error(err);
         alert("Something went wrong while merging PDFs");
-    }finally{
+    } finally {
         hideLoad();
     }
 
@@ -313,45 +313,52 @@ async function uploadFile(name) {
     showLoad();
 
     try {
+        // 1. Get the file from OPFS (Your existing logic)
         const root = await navigator.storage.getDirectory();
         const fileHandle = await root.getFileHandle(name);
         const file = await fileHandle.getFile();
 
+        // 2. Get Signature from your server
         const authRes = await fetch("/get-upload-auth");
-        const { signature, timestamp, apiKey } = await authRes.json();
+        const { signature, timestamp, apiKey, cloudName } = await authRes.json();
 
+        // 3. Prepare Cloudinary Form Data
         const formData = new FormData();
         formData.append("file", file);
         formData.append("api_key", apiKey);
         formData.append("timestamp", timestamp);
         formData.append("signature", signature);
-        formData.append("upload_preset", "print-pdf");
-        formData.append("folder", "user_uploads/print_queue");
+        formData.append("upload_preset", "print-pdf"); // Must match your preset name
+        formData.append("folder", "user_uploads/print_queue"); // Must match server folder
 
-        // THIS IS THE EXACT URL FOR YOUR ACCOUNT:
-        const uploadRes = await fetch("https://cloudinary.com", {
-            method: "POST",
-            body: formData
-        });
+        // 4. Upload directly to Cloudinary
+        const uploadRes = await fetch(
+            `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+            {
+                method: "POST",
+                body: formData
+            }
+        );
 
-        if (!uploadRes.ok) {
-            const errorData = await uploadRes.json();
-            throw new Error(errorData.error.message);
-        }
+        if (!uploadRes.ok) throw new Error("Cloudinary upload failed");
 
         const uploadData = await uploadRes.json();
-        
+        const cloudinaryUrl = uploadData.secure_url; // This is the direct link to the PDF
+
+        // 5. Save to your fileMap (Passing the URL now, not just the name)
         const codeRes = await fetch("/save-file", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cloudinaryUrl: uploadData.secure_url })
+            body: JSON.stringify({
+                cloudinaryUrl: cloudinaryUrl
+            })
         });
 
         const data = await codeRes.json();
         document.getElementById("generatedCodeDisplay").innerText = data.code;
 
     } catch (err) {
-        console.error("FULL ERROR:", err);
+        console.error(err);
         alert("Upload failed: " + err.message);
     } finally {
         hideLoad();
@@ -366,12 +373,12 @@ async function uploadFile(name) {
 //         const root = await navigator.storage.getDirectory();
 //         const fileHandle = await root.getFileHandle(name);
 //         const file = await fileHandle.getFile();
-        
+
 //         const formData = new FormData();
 //         formData.append("file", file);
-        
+
 //         const res = await fetch("/upload", { method: "POST", body: formData });
-        
+
 //         if (!res.ok) {
 //             const contentType = res.headers.get("content-type");
 //             let err = (contentType && contentType.includes("application/json")) 
@@ -380,17 +387,17 @@ async function uploadFile(name) {
 //             alert(err);
 //             return;
 //         }
-        
+
 //         const data = await res.json();
-        
-        
+
+
 //         // --- NEW LOGIC: Update the UI instead of just alerting ---
 //         const copySection = document.getElementById("copySection");
 //         const display = document.getElementById("generatedCodeDisplay");
-        
+
 //         display.innerText = data.code; // Set the code from server
 //         copySection.classList.remove("hidden"); // Show the card
-        
+
 //         // Smooth scroll to the code so the user sees it
 //         copySection.scrollIntoView({ behavior: 'smooth' });
 //     } catch (error) {
@@ -427,21 +434,21 @@ function copyToClipboard() {
 
 function getFile() {
     const code = document.getElementById("codeInput").value.trim();
-    
+
     if (!code) {
         alert("Enter code");
         return;
     }
-      if (!/^\d+$/.test(code)) {
+    if (!/^\d+$/.test(code)) {
         alert("Code must contain only numbers ");
         document.getElementById("codeInput").value = '';
         return;
     }
-    if(code.length!=6){
+    if (code.length != 6) {
         alert("Code is of 6 digits")
         return;
     }
-    
+
 
     const tab = window.open(`/file/${code}`, "_blank");
 
