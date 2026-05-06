@@ -9,12 +9,12 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const b2 = new B2({
-    applicationKeyId: "0065dace770e4de0000000001",
-    applicationKey: "K006HRyzyorpeEROw0IOV4gZvLvZ6UE"
+    applicationKeyId: process.env.KeyId,
+    applicationKey: process.env.Key
 });
 
-const BUCKET_ID = "553d0adcfe17f7c09ed40d1e";
-const BUCKET_NAME = "fs-printpro";
+const BUCKET_ID = process.env.BUCKET_ID;
+const BUCKET_NAME = process.env.BUCKET_NAME;
 
 const fileMap = new Map();
 
