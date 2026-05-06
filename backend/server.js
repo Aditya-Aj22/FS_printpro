@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const cors = require("cors");
 const path = require("path");
 const B2 = require("backblaze-b2");
@@ -6,6 +7,7 @@ const B2 = require("backblaze-b2");
 const app = express();
 app.use(cors());
 app.use(express.json());
+
 
 const PORT = process.env.PORT || 3000;
 const b2 = new B2({
@@ -18,17 +20,25 @@ const BUCKET_NAME = process.env.BUCKET_NAME;
 
 const fileMap = new Map();
 
+function generateCode() { return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0"); }
+
 async function authorizeB2() {
     await b2.authorize();
 }
 
-app.get("/get-upload-url", async (req, res) => {
+app.get("/get-upload-auth", async (req, res) => {
     try {
-        await authorizeB2();
+        await b2.authorize();
+
         const response = await b2.getUploadUrl({
             bucketId: BUCKET_ID
         });
-        res.json(response.data);
+
+        res.json({
+            uploadUrl: response.data.uploadUrl,
+            authToken: response.data.authorizationToken
+        });
+
     } catch (err) {
         console.error(err);
         res.status(500).send("Failed to get upload URL");
@@ -36,18 +46,16 @@ app.get("/get-upload-url", async (req, res) => {
 });
 
 app.post("/save-file", (req, res) => {
-    const { code, fileName } = req.body;
+    const { fileName } = req.body;
 
-    if (!code || !fileName) {
-        return res.status(400).send("Missing data");
-    }
+    const code = generateCode();
 
     fileMap.set(code, {
         fileName,
         expiry: Date.now() + (60 * 60 * 1000)
     });
 
-    res.sendStatus(200);
+    res.json({ code });
 });
 
 app.get("/file/:code", (req, res) => {
@@ -63,16 +71,36 @@ app.get("/file/:code", (req, res) => {
         return res.status(410).send("File expired");
     }
 
-    const fileUrl = `https://f000.backblazeb2.com/file/${BUCKET_NAME}/${data.fileName}`;
+    const fileUrl = `https://f000.backblazeb2.com/file/${BUCKET_NAME}/${encodeURIComponent(data.fileName)}`;
     res.redirect(fileUrl);
 });
 
 app.get('/ping', (req,res)=>{ res.status(200).send('OK'); });
 
-setInterval(() => {
+app.get("/Aj", (req, res) => {
+    const result = [];
+
+    for (let [code, data] of fileMap.entries()) {
+        result.push({
+            code,
+            fileName: data.fileName,
+            expiry: data.expiry,
+            expiresIn: Math.max(0, Math.floor((data.expiry - Date.now()) / 1000)) + " sec"
+        });
+    }
+
+    res.json({
+        totalFiles: result.length,
+        files: result
+    });
+});
+
+setInterval(async () => {
     const now = Date.now();
+
     for (let [code, data] of fileMap.entries()) {
         if (now > data.expiry) {
+            await deleteFromB2(data.fileName);
             fileMap.delete(code);
         }
     }

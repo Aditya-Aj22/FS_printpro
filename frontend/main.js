@@ -309,7 +309,6 @@ async function deleteFile(name) {
 //     alert("Your Print Code: " + data.code + " is valid for only 30min ,take a print before that!!");
 // }
 //this is the function that sent the get request to print with user [preview]
-
 async function uploadFile(name) {
     showLoad();
 
@@ -318,41 +317,37 @@ async function uploadFile(name) {
         const fileHandle = await root.getFileHandle(name);
         const file = await fileHandle.getFile();
 
-        // 1. Get upload URL
-        const res = await fetch("/get-upload-url");
-        const data = await res.json();
+        const uniqueName = Date.now() + "_" + file.name;
 
-        const fileName =  file.name;
+        const authRes = await fetch("/get-upload-auth");
+        const { uploadUrl, authToken } = await authRes.json();
 
-        // 2. Upload to B2
-        await fetch(data.uploadUrl, {
+        const res = await fetch(uploadUrl, {
             method: "POST",
             headers: {
-                Authorization: data.authorizationToken,
-                "X-Bz-File-Name": encodeURIComponent(fileName),
-                "Content-Type": file.type,
+                "Authorization": authToken,
+                "X-Bz-File-Name": encodeURIComponent(uniqueName),
+                "Content-Type": "b2/x-auto",
                 "X-Bz-Content-Sha1": "do_not_verify"
             },
             body: file
         });
 
-        // 3. Generate code
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        if (!res.ok) throw new Error("Upload failed");
 
-        // 4. Save mapping in backend
-        await fetch("/save-file", {
+        const codeRes = await fetch("/save-file", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code, fileName })
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                fileName: uniqueName
+            })
         });
 
-        // UI
-        const copySection = document.getElementById("copySection");
-        const display = document.getElementById("generatedCodeDisplay");
+        const data = await codeRes.json();
 
-        display.innerText = code;
-        copySection.classList.remove("hidden");
-        copySection.scrollIntoView({ behavior: "smooth" });
+        document.getElementById("generatedCodeDisplay").innerText = data.code;
 
     } catch (err) {
         console.error(err);
