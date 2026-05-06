@@ -332,7 +332,7 @@ async function uploadFile(name) {
         formData.append("folder", "user_uploads/print_queue"); // Must match server folder
 
         // 4. Upload directly to Cloudinary
-        const uploadRes = await fetch(`https://cloudinary.com{cloudName}/upload`, {
+        const uploadRes = await fetch(`https://cloudinary.com${cloudName}/upload`, {
             method: "POST",
             body: formData
         });
