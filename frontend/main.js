@@ -328,6 +328,7 @@ async function uploadFile(name) {
         formData.append("resource_type", "raw");
         formData.append("folder", "user_uploads/print_queue");
 
+        console.log({ timestamp, folder: "user_uploads/print_queue", resource_type: "raw" });
         const uploadRes = await fetch(
             `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`,
             {

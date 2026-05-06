@@ -37,6 +37,9 @@ app.get("/get-upload-auth", (req, res) => {
             process.env.CLOUDINARY_API_SECRET
         );
 
+        console.log(paramsToSign);
+console.log(signature);
+
         res.json({
             signature,
             timestamp,
