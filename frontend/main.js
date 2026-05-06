@@ -313,49 +313,55 @@ async function uploadFile(name) {
     showLoad();
 
     try {
+        // 1. Get the file from OPFS (Your existing logic)
         const root = await navigator.storage.getDirectory();
         const fileHandle = await root.getFileHandle(name);
         const file = await fileHandle.getFile();
 
-        const uniqueName = Date.now() + "_" + file.name;
-
+        // 2. Get Signature from your server
         const authRes = await fetch("/get-upload-auth");
-        const { uploadUrl, authToken } = await authRes.json();
+        const { signature, timestamp, apiKey, cloudName } = await authRes.json();
 
-        const res = await fetch(uploadUrl, {
+        // 3. Prepare Cloudinary Form Data
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("api_key", apiKey);
+        formData.append("timestamp", timestamp);
+        formData.append("signature", signature);
+        formData.append("upload_preset", "print-pdf"); // Must match your preset name
+        formData.append("folder", "user_uploads/print_queue"); // Must match server folder
+
+        // 4. Upload directly to Cloudinary
+        const uploadRes = await fetch(`https://cloudinary.com{cloudName}/upload`, {
             method: "POST",
-            headers: {
-                "Authorization": authToken,
-                "X-Bz-File-Name": encodeURIComponent(uniqueName),
-                "Content-Type": "b2/x-auto",
-                "X-Bz-Content-Sha1": "do_not_verify"
-            },
-            body: file
+            body: formData
         });
 
-        if (!res.ok) throw new Error("Upload failed");
+        if (!uploadRes.ok) throw new Error("Cloudinary upload failed");
 
+        const uploadData = await uploadRes.json();
+        const cloudinaryUrl = uploadData.secure_url; // This is the direct link to the PDF
+
+        // 5. Save to your fileMap (Passing the URL now, not just the name)
         const codeRes = await fetch("/save-file", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                fileName: uniqueName
+                cloudinaryUrl: cloudinaryUrl
             })
         });
 
         const data = await codeRes.json();
-
         document.getElementById("generatedCodeDisplay").innerText = data.code;
 
     } catch (err) {
         console.error(err);
-        alert("Upload failed");
+        alert("Upload failed: " + err.message);
     } finally {
         hideLoad();
     }
 }
+
 
 // async function uploadFile(name) {
 

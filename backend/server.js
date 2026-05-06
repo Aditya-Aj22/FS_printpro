@@ -2,88 +2,96 @@ const express = require("express");
 const crypto = require("crypto");
 const cors = require("cors");
 const path = require("path");
-const B2 = require("backblaze-b2");
+const cloudinary = require("cloudinary").v2; // 1. Switched to Cloudinary
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-
 const PORT = process.env.PORT || 3000;
-const b2 = new B2({
-    applicationKeyId: process.env.KeyId,
-    applicationKey: process.env.Key
-});
 
-const BUCKET_ID = process.env.BUCKET_ID;
-const BUCKET_NAME = process.env.BUCKET_NAME;
+// 2. Configure Cloudinary with your Dashboard credentials
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 const fileMap = new Map();
 
 function generateCode() { return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0"); }
 
-async function authorizeB2() {
-    await b2.authorize();
-}
-
-app.get("/get-upload-auth", async (req, res) => {
+// 3. New Endpoint: Generate Cloudinary Signature
+app.get("/get-upload-auth", (req, res) => {
     try {
-        await b2.authorize();
+        const timestamp = Math.round(new Date().getTime() / 1000);
+        
+        // These MUST match exactly what you set in your Cloudinary Preset
+        const paramsToSign = {
+            timestamp: timestamp,
+            upload_preset: "print-pdf", // Your preset name
+            folder: "user_uploads/print_queue" // Your preset folder
+        };
 
-        const response = await b2.getUploadUrl({
-            bucketId: BUCKET_ID
-        });
+        const signature = cloudinary.utils.api_sign_request(
+            paramsToSign,
+            process.env.CLOUDINARY_API_SECRET
+        );
 
         res.json({
-            uploadUrl: response.data.uploadUrl,
-            authToken: response.data.authorizationToken
+            signature,
+            timestamp,
+            apiKey: process.env.CLOUDINARY_API_KEY,
+            cloudName: process.env.CLOUDINARY_CLOUD_NAME
         });
-
     } catch (err) {
         console.error(err);
-        res.status(500).send("Failed to get upload URL");
+        res.status(500).send("Failed to generate signature");
     }
 });
 
+// 4. Save file reference (Now saving the URL instead of just filename)
 app.post("/save-file", (req, res) => {
-    const { fileName } = req.body;
+    const { cloudinaryUrl } = req.body;
 
     const code = generateCode();
-
     fileMap.set(code, {
-        fileName,
+        url: cloudinaryUrl, // We store the direct secure link
         expiry: Date.now() + (60 * 60 * 1000)
     });
 
     res.json({ code });
 });
 
+// 5. Redirect user to the PDF
 app.get("/file/:code", (req, res) => {
     const code = req.params.code;
     const data = fileMap.get(code);
 
-    if (!data) {
-        return res.status(404).send("File not found");
-    }
+    if (!data) return res.status(404).send("File not found");
 
     if (Date.now() > data.expiry) {
         fileMap.delete(code);
         return res.status(410).send("File expired");
     }
 
-    const fileUrl = `https://f000.backblazeb2.com/file/${BUCKET_NAME}/${encodeURIComponent(data.fileName)}`;
-    res.redirect(fileUrl);
+    res.redirect(data.url); // Direct redirect to Cloudinary URL
 });
 
-app.get('/ping', (req,res)=>{ res.status(200).send('OK'); });
+// ... Keep your /ping and /Aj endpoints as they are ...
 
+app.get('/ping', (req, res) => { 
+    res.status(200).send('OK'); 
+});
+
+// 2. The Admin/Debug Endpoint (Shows all active print codes)
 app.get("/Aj", (req, res) => {
     const result = [];
 
     for (let [code, data] of fileMap.entries()) {
         result.push({
             code,
-            fileName: data.fileName,
+            fileUrl: data.url, 
             expiry: data.expiry,
             expiresIn: Math.max(0, Math.floor((data.expiry - Date.now()) / 1000)) + " sec"
         });
@@ -95,22 +103,26 @@ app.get("/Aj", (req, res) => {
     });
 });
 
-setInterval(async () => {
+setInterval(() => {
     const now = Date.now();
-
     for (let [code, data] of fileMap.entries()) {
         if (now > data.expiry) {
-            await deleteFromB2(data.fileName);
             fileMap.delete(code);
+            // Note: This only clears the code from your server memory.
+            // The file will still be on Cloudinary unless we add deletion logic.
         }
     }
-}, 10 * 60 * 1000);
+}, 10 * 60 * 1000); 
 
+
+// 3. STATIC FILES (Frontend)
 app.use(express.static(path.join(__dirname, "../frontend")));
 
+// 4. THE HOME PAGE
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "../frontend/index.html"));
 });
 
-
-app.listen(PORT, () => { console.log("Server running on http://localhost:" + PORT); });
+app.listen(PORT, () => { 
+    console.log("Server running on http://localhost:" + PORT); 
+});
