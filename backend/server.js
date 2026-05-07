@@ -177,6 +177,12 @@ app.use((req, res, next) => {
 
 app.use(cors());
 
+
+const stats = {
+  daily: {},
+  weekly: {}
+};
+
 const uploadLimiter = rateLimit({
     windowMs: 12 * 60 * 60 * 1000,
     max: 100,
@@ -255,13 +261,25 @@ app.get("/file/:code", (req, res) => {
 
 // ================= DETAIL =================
 
+function getWeekNumber(date) {
+    const firstDay = new Date(date.getFullYear(), 0, 1);
+    const days = Math.floor((date - firstDay) / (24 * 60 * 60 * 1000));
+    return `${date.getFullYear()}-W${Math.ceil((days + firstDay.getDay() + 1) / 7)}`;
+}
+
+app.get("/stats", (req, res) => {
+    res.json({
+        daily: stats.daily,
+        weekly: stats.weekly
+    });
+});
+
 app.get("/detail", (req, res) => {
     const dir = path.join(__dirname, "../uploads");
 
     try {
         const files = fs.readdirSync(dir);
         const result = [];
-
         files.forEach(file => {
             if (file.endsWith(".json")) {
                 const metaPath = path.join(dir, file);
