@@ -1,157 +1,321 @@
 
+// const express = require("express");
+// const crypto = require("crypto");
+// const cors = require("cors");
+// const path = require("path");
+// const cloudinary = require("cloudinary").v2; 
+
+
+// require("dotenv").config();
+// const app = express();
+// app.use(cors());
+// app.use(express.json());
+
+// const PORT = process.env.PORT || 3000;
+
+// // 2. Configure Cloudinary with your Dashboard credentials
+// cloudinary.config({
+//     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+//     api_key: process.env.CLOUDINARY_API_KEY,
+//     api_secret: process.env.CLOUDINARY_API_SECRET
+// });
+
+// const fileMap = new Map();
+
+// const stats = {
+//   daily: {},
+//   weekly: {}
+// };
+
+// function generateCode() { return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0"); }
+
+// // 3. New Endpoint: Generate Cloudinary Signature
+// app.get("/get-upload-auth", (req, res) => {
+//     try {
+//         const timestamp = Math.round(Date.now() / 1000);
+//         const paramsToSign = {
+//             timestamp,
+//             folder: "user_uploads/print_queue",
+//         };
+
+//         const signature = cloudinary.utils.api_sign_request(
+//             paramsToSign,
+//             process.env.CLOUDINARY_API_SECRET
+//         );
+
+
+//         res.json({
+//             signature,
+//             timestamp,
+//             apiKey: process.env.CLOUDINARY_API_KEY,
+//             cloudName: process.env.CLOUDINARY_CLOUD_NAME
+//         });
+
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).send("Signature error");
+//     }
+// });
+
+
+// // 4. Save file reference (Now saving the URL instead of just filename)
+// app.post("/save-file", (req, res) => {
+//     const { cloudinaryUrl } = req.body;
+
+//     const code = generateCode();
+//     fileMap.set(code, {
+//         url: cloudinaryUrl, // We store the direct secure link
+//         expiry: Date.now() + (60 * 60 * 1000)
+//     });
+
+//     res.json({ code });
+// });
+
+// function getWeekNumber(date) {
+//     const firstDay = new Date(date.getFullYear(), 0, 1);
+//     const days = Math.floor((date - firstDay) / (24 * 60 * 60 * 1000));
+//     return `${date.getFullYear()}-W${Math.ceil((days + firstDay.getDay() + 1) / 7)}`;
+// }
+
+// // 5. Redirect user to the PDF
+// app.get("/file/:code", (req, res) => {
+
+//     // stats for kepping read of file
+//     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+//     stats.daily[today] = (stats.daily[today] || 0) + 1;
+//     const week = getWeekNumber(new Date());
+//     stats.weekly[week] = (stats.weekly[week] || 0) + 1;
+
+//     const code = req.params.code;
+//     const data = fileMap.get(code);
+
+//     if (!data) return res.status(404).send("File not found");
+
+//     if (Date.now() > data.expiry) {
+//         fileMap.delete(code);
+//         return res.status(410).send("File expired");
+//     }
+//     console.log(data);
+//     res.redirect(data.url);
+
+// });
+
+// // ... Keep your /ping and /Aj endpoints as they are ...
+
+// app.get('/ping', (req, res) => { 
+//     res.status(200).send('OK'); 
+// });
+
+// // 2. The Admin/Debug Endpoint (Shows all active print codes)
+// app.get("/Aj", (req, res) => {
+//     const result = [];
+
+//     for (let [code, data] of fileMap.entries()) {
+//         result.push({
+//             code,
+//             fileUrl: data.url, 
+//             expiry: data.expiry,
+//             expiresIn: Math.max(0, Math.floor((data.expiry - Date.now()) / 1000)) + " sec"
+//         });
+//     }
+
+//     res.json({
+//         totalFiles: result.length,
+//         files: result
+//     });
+// });
+
+// app.get("/stats", (req, res) => {
+//     res.json({
+//         daily: stats.daily,
+//         weekly: stats.weekly
+//     });
+// });
+
+// setInterval(() => {
+//     const now = Date.now();
+//     for (let [code, data] of fileMap.entries()) {
+//         if (now > data.expiry) {
+//             fileMap.delete(code);
+//             // Note: This only clears the code from your server memory.
+//             // The file will still be on Cloudinary unless we add deletion logic.
+//         }
+//     }
+// }, 10 * 60 * 1000); 
+
+
+// // 3. STATIC FILES (Frontend)
+// app.use(express.static(path.join(__dirname, "../frontend")));
+
+// // 4. THE HOME PAGE
+// app.get("/", (req, res) => {
+//     res.sendFile(path.join(__dirname, "../frontend/index.html"));
+// });
+
+// app.listen(PORT, () => { 
+//     console.log("Server running on http://localhost:" + PORT); 
+// });
+
 const express = require("express");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const crypto = require("crypto");
 const cors = require("cors");
-const path = require("path");
-const cloudinary = require("cloudinary").v2; 
+const rateLimit = require("express-rate-limit");
+const { print } = require("pdf-to-printer");
 
-
-require("dotenv").config();
 const app = express();
-app.use(cors());
-app.use(express.json());
-
 const PORT = process.env.PORT || 3000;
 
-// 2. Configure Cloudinary with your Dashboard credentials
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
+app.set("trust proxy", 1);
+
+app.use((req, res, next) => {
+    res.setTimeout(5 * 60 * 1000); // 5 minutes
+    next();
 });
 
-const fileMap = new Map();
+app.use(cors());
 
-const stats = {
-  daily: {},
-  weekly: {}
-};
-
-function generateCode() { return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0"); }
-
-// 3. New Endpoint: Generate Cloudinary Signature
-app.get("/get-upload-auth", (req, res) => {
-    try {
-        const timestamp = Math.round(Date.now() / 1000);
-        const paramsToSign = {
-            timestamp,
-            folder: "user_uploads/print_queue",
-        };
-
-        const signature = cloudinary.utils.api_sign_request(
-            paramsToSign,
-            process.env.CLOUDINARY_API_SECRET
-        );
-
-
-        res.json({
-            signature,
-            timestamp,
-            apiKey: process.env.CLOUDINARY_API_KEY,
-            cloudName: process.env.CLOUDINARY_CLOUD_NAME
-        });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Signature error");
-    }
+const uploadLimiter = rateLimit({
+    windowMs: 12 * 60 * 60 * 1000,
+    max: 100,
+    message: "Too many uploads, try again later"
 });
 
-
-// 4. Save file reference (Now saving the URL instead of just filename)
-app.post("/save-file", (req, res) => {
-    const { cloudinaryUrl } = req.body;
-
-    const code = generateCode();
-    fileMap.set(code, {
-        url: cloudinaryUrl, // We store the direct secure link
-        expiry: Date.now() + (60 * 60 * 1000)
-    });
-
-    res.json({ code });
+const upload = multer({
+    dest: path.join(__dirname, "../uploads"),
+    limits: { fileSize: 10 * 1024 * 1024 }
 });
 
-function getWeekNumber(date) {
-    const firstDay = new Date(date.getFullYear(), 0, 1);
-    const days = Math.floor((date - firstDay) / (24 * 60 * 60 * 1000));
-    return `${date.getFullYear()}-W${Math.ceil((days + firstDay.getDay() + 1) / 7)}`;
+function generateCode() {
+    return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
 }
 
-// 5. Redirect user to the PDF
+app.post("/upload", uploadLimiter, upload.single("file"), (req, res) => {
+    try {
+        const code = generateCode();
+        console.log("Upload hit from IP:", req.ip);
+
+        const pdfPath = path.join(__dirname, "../uploads", code + ".pdf");
+        const metaPath = pdfPath + ".json";
+
+        fs.renameSync(req.file.path, pdfPath);
+
+        const expiryTime = Date.now() + (30 * 60 * 1000);
+
+        fs.writeFileSync(metaPath, JSON.stringify({ expiryTime, seen: false }));
+
+        res.json({ code });
+    } catch (err) {
+        res.status(500).send("Upload failed pdf size is greater than 10mb kindly download it print manually");
+    }
+});
+
+// ================= FILE =================
+
 app.get("/file/:code", (req, res) => {
+    const code = req.params.code.toUpperCase();
 
-    // stats for kepping read of file
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    stats.daily[today] = (stats.daily[today] || 0) + 1;
-    const week = getWeekNumber(new Date());
-    stats.weekly[week] = (stats.weekly[week] || 0) + 1;
+    const pdfPath = path.join(__dirname, "../uploads", code + ".pdf");
+    const metaPath = pdfPath + ".json";
 
-    const code = req.params.code;
-    const data = fileMap.get(code);
-
-    if (!data) return res.status(404).send("File not found");
-
-    if (Date.now() > data.expiry) {
-        fileMap.delete(code);
-        return res.status(410).send("File expired");
-    }
-    console.log(data);
-    res.redirect(data.url);
-
-});
-
-// ... Keep your /ping and /Aj endpoints as they are ...
-
-app.get('/ping', (req, res) => { 
-    res.status(200).send('OK'); 
-});
-
-// 2. The Admin/Debug Endpoint (Shows all active print codes)
-app.get("/Aj", (req, res) => {
-    const result = [];
-
-    for (let [code, data] of fileMap.entries()) {
-        result.push({
-            code,
-            fileUrl: data.url, 
-            expiry: data.expiry,
-            expiresIn: Math.max(0, Math.floor((data.expiry - Date.now()) / 1000)) + " sec"
-        });
+    if (!fs.existsSync(pdfPath)) {
+        return res.status(404).send("File not found");
     }
 
-    res.json({
-        totalFiles: result.length,
-        files: result
-    });
-});
+    res.setHeader("Content-Type", "application/pdf");
 
-app.get("/stats", (req, res) => {
-    res.json({
-        daily: stats.daily,
-        weekly: stats.weekly
-    });
-});
+    // ✅ FIXED LINE
+    res.setHeader("Content-Disposition", `inline; filename="${code}.pdf"`);
 
-setInterval(() => {
-    const now = Date.now();
-    for (let [code, data] of fileMap.entries()) {
-        if (now > data.expiry) {
-            fileMap.delete(code);
-            // Note: This only clears the code from your server memory.
-            // The file will still be on Cloudinary unless we add deletion logic.
+    res.sendFile(pdfPath, (err) => {
+        if (err) {
+            console.log("SendFile error:", err);
+            if (!res.headersSent) {
+                res.status(500).send("Error sending file");
+            }
+        } else {
+            console.log("File served:", code);
+
+            if (fs.existsSync(metaPath)) {
+                fs.promises.readFile(metaPath, "utf-8")
+                    .then(data => {
+                        const meta = JSON.parse(data);
+                        if (!meta.seen) {
+                            meta.seen = true;
+                            return fs.promises.writeFile(metaPath, JSON.stringify(meta));
+                        }
+                    })
+                    .catch(err => console.log("Meta update failed:", err));
+            }
         }
+    });
+});
+
+// ================= DETAIL =================
+
+app.get("/detail", (req, res) => {
+    const dir = path.join(__dirname, "../uploads");
+
+    try {
+        const files = fs.readdirSync(dir);
+        const result = [];
+
+        files.forEach(file => {
+            if (file.endsWith(".json")) {
+                const metaPath = path.join(dir, file);
+
+                try {
+                    const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+                    const pdfFile = file.replace(".pdf.json", ".pdf");
+
+                    const readableExpiry = new Date(meta.expiryTime).toLocaleString();
+
+                    result.push({
+                        file: pdfFile,
+                        expiryReadable: readableExpiry,
+                        seen: meta.seen
+                    });
+                } catch (err) {
+                    console.log("Error reading:", file);
+                }
+            }
+        });
+
+        res.json(result);
+    } catch (err) {
+        console.log("Detail scan error:", err);
+        res.status(500).json({ error: "Failed to scan uploads" });
     }
-}, 10 * 60 * 1000); 
+});
 
-
-// 3. STATIC FILES (Frontend)
 app.use(express.static(path.join(__dirname, "../frontend")));
 
-// 4. THE HOME PAGE
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/index.html"));
+app.get('/ping', (req, res) => {
+    res.status(200).send('OK');
 });
 
-app.listen(PORT, () => { 
-    console.log("Server running on http://localhost:" + PORT); 
+// ================= CLEANUP =================
+
+setInterval(() => {
+    const files = fs.readdirSync(path.join(__dirname, '../uploads'));
+
+    files.forEach(file => {
+        if (file.endsWith(".json")) {
+            const metaPath = path.join(__dirname, "../uploads", file);
+            const meta = JSON.parse(fs.readFileSync(metaPath));
+
+            if (Date.now() > meta.expiryTime || meta.seen === true) {
+                const pdfFile = file.replace(".pdf.json", ".pdf");
+
+                fs.unlinkSync(metaPath);
+                fs.unlinkSync(path.join(__dirname, "../uploads", pdfFile));
+            }
+        }
+    });
+}, 5 * 60 * 1000);
+
+app.listen(PORT, () => {
+    console.log("Server running on http://localhost:" + PORT);
 });

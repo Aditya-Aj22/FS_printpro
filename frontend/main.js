@@ -274,148 +274,115 @@ async function deleteFile(name) {
     showfiles();
 }
 
-
-// old upload without option to copy code
-// async function uploadFile(name) {
-//     const root = await navigator.storage.getDirectory();
-//     const fileHandle = await root.getFileHandle(name);
-//     const file = await fileHandle.getFile();
-
-//     const formData = new FormData();
-//     formData.append("file", file);
-
-//     const res = await fetch("/upload", {
-//         method: "POST",
-//         body: formData
-//     });
-
-//     if (!res.ok) {
-//         const contentType = res.headers.get("content-type");
-
-//         let err;
-
-//         if (contentType && contentType.includes("application/json")) {
-//             const data = await res.json();
-//             err = data.message;
-//         } else {
-//             err = await res.text();
-//         }
-
-//         alert(err);
-//         return;
-//     }
-
-//     const data = await res.json();
-//     alert("Your Print Code: " + data.code + " is valid for only 30min ,take a print before that!!");
-// }
-//this is the function that sent the get request to print with user [preview]
-async function uploadFile(name) {
-    showLoad();
-
-    try {
-        const root = await navigator.storage.getDirectory();
-        const fileHandle = await root.getFileHandle(name);
-        const file = await fileHandle.getFile();
-
-        const authRes = await fetch("/get-upload-auth");
-        const { signature, timestamp, apiKey, cloudName } = await authRes.json();
-
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("api_key", apiKey);
-        formData.append("timestamp", timestamp);
-        formData.append("signature", signature);
-        formData.append("resource_type", "raw");
-        formData.append("folder", "user_uploads/print_queue");
-
-        console.log({ timestamp, folder: "user_uploads/print_queue",signature });
-        const uploadRes = await fetch(
-            `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`,
-            {
-                method: "POST",
-                body: formData
-            }
-        );
-
-        const uploadData = await uploadRes.json();
-
-        if (uploadData.error) {
-            throw new Error(uploadData.error.message);
-        }
-
-        const cloudinaryUrl = uploadData.secure_url;
-
-        const codeRes = await fetch("/save-file", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cloudinaryUrl })
-        });
-
-        const data = await codeRes.json();
-         if (data.error) {
-            throw new Error(data.error.message);
-        }
-        const codeEl = document.getElementById("generatedCodeDisplay");
-    const section = document.getElementById("copySection");
-
-    codeEl.innerText = data.code;
-
-    section.classList.remove("hidden");
-
-    section.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-
-    } catch (err) {
-        console.error(err);
-        alert("Upload failed: " + err.message);
-    } finally {
-        hideLoad();
-    }
-}
+//cloudinary upload code
 
 // async function uploadFile(name) {
-
 //     showLoad();
+
 //     try {
 //         const root = await navigator.storage.getDirectory();
 //         const fileHandle = await root.getFileHandle(name);
 //         const file = await fileHandle.getFile();
 
+//         const authRes = await fetch("/get-upload-auth");
+//         const { signature, timestamp, apiKey, cloudName } = await authRes.json();
+
 //         const formData = new FormData();
 //         formData.append("file", file);
+//         formData.append("api_key", apiKey);
+//         formData.append("timestamp", timestamp);
+//         formData.append("signature", signature);
+//         formData.append("resource_type", "raw");
+//         formData.append("folder", "user_uploads/print_queue");
 
-//         const res = await fetch("/upload", { method: "POST", body: formData });
+//         console.log({ timestamp, folder: "user_uploads/print_queue",signature });
+//         const uploadRes = await fetch(
+//             `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`,
+//             {
+//                 method: "POST",
+//                 body: formData
+//             }
+//         );
 
-//         if (!res.ok) {
-//             const contentType = res.headers.get("content-type");
-//             let err = (contentType && contentType.includes("application/json")) 
-//             ? (await res.json()).message 
-//             : await res.text();
-//             alert(err);
-//             return;
+//         const uploadData = await uploadRes.json();
+
+//         if (uploadData.error) {
+//             throw new Error(uploadData.error.message);
 //         }
 
-//         const data = await res.json();
+//         const cloudinaryUrl = uploadData.secure_url;
 
+//         const codeRes = await fetch("/save-file", {
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify({ cloudinaryUrl })
+//         });
 
-//         // --- NEW LOGIC: Update the UI instead of just alerting ---
-//         const copySection = document.getElementById("copySection");
-//         const display = document.getElementById("generatedCodeDisplay");
+//         const data = await codeRes.json();
+//          if (data.error) {
+//             throw new Error(data.error.message);
+//         }
+//         const codeEl = document.getElementById("generatedCodeDisplay");
+//     const section = document.getElementById("copySection");
 
-//         display.innerText = data.code; // Set the code from server
-//         copySection.classList.remove("hidden"); // Show the card
+//     codeEl.innerText = data.code;
 
-//         // Smooth scroll to the code so the user sees it
-//         copySection.scrollIntoView({ behavior: 'smooth' });
-//     } catch (error) {
-//         console.error(error);
-//         alert("Something went wrong. The server might be waking up.");
-//     }finally{
+//     section.classList.remove("hidden");
+
+//     section.scrollIntoView({
+//       behavior: "smooth",
+//       block: "center"
+//     });
+
+//     } catch (err) {
+//         console.error(err);
+//         alert("Upload failed: " + err.message);
+//     } finally {
 //         hideLoad();
 //     }
 // }
+
+async function uploadFile(name) {
+
+    showLoad();
+    try {
+        const root = await navigator.storage.getDirectory();
+        const fileHandle = await root.getFileHandle(name);
+        const file = await fileHandle.getFile();
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/upload", { method: "POST", body: formData });
+
+        if (!res.ok) {
+            const contentType = res.headers.get("content-type");
+            let err = (contentType && contentType.includes("application/json")) 
+            ? (await res.json()).message 
+            : await res.text();
+            alert(err);
+            return;
+        }
+
+        const data = await res.json();
+
+
+        // --- NEW LOGIC: Update the UI instead of just alerting ---
+        const copySection = document.getElementById("copySection");
+        const display = document.getElementById("generatedCodeDisplay");
+
+        display.innerText = data.code; // Set the code from server
+        copySection.classList.remove("hidden"); // Show the card
+
+        // Smooth scroll to the code so the user sees it
+        copySection.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+        console.error(error);
+        alert("Something went wrong. The server might be waking up.");
+    }finally{
+        hideLoad();
+    }
+}
 
 
 
