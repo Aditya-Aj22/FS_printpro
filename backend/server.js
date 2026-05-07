@@ -1,9 +1,12 @@
+
 const express = require("express");
 const crypto = require("crypto");
 const cors = require("cors");
 const path = require("path");
-const cloudinary = require("cloudinary").v2; // 1. Switched to Cloudinary
+const cloudinary = require("cloudinary").v2; 
 
+
+require("dotenv").config();
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -19,18 +22,21 @@ cloudinary.config({
 
 const fileMap = new Map();
 
+const stats = {
+  daily: {},
+  weekly: {}
+};
+
 function generateCode() { return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0"); }
 
 // 3. New Endpoint: Generate Cloudinary Signature
 app.get("/get-upload-auth", (req, res) => {
     try {
         const timestamp = Math.round(Date.now() / 1000);
-
         const paramsToSign = {
-    timestamp,
-    folder: "user_uploads/print_queue",
-    
-};
+            timestamp,
+            folder: "user_uploads/print_queue",
+        };
 
         const signature = cloudinary.utils.api_sign_request(
             paramsToSign,
@@ -38,7 +44,7 @@ app.get("/get-upload-auth", (req, res) => {
         );
 
         console.log(paramsToSign);
-console.log(signature);
+        console.log(signature);
 
         res.json({
             signature,
@@ -67,8 +73,21 @@ app.post("/save-file", (req, res) => {
     res.json({ code });
 });
 
+function getWeekNumber(date) {
+    const firstDay = new Date(date.getFullYear(), 0, 1);
+    const days = Math.floor((date - firstDay) / (24 * 60 * 60 * 1000));
+    return `${date.getFullYear()}-W${Math.ceil((days + firstDay.getDay() + 1) / 7)}`;
+}
+
 // 5. Redirect user to the PDF
 app.get("/file/:code", (req, res) => {
+
+    // stats for kepping read of file
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    stats.daily[today] = (stats.daily[today] || 0) + 1;
+    const week = getWeekNumber(new Date());
+    stats.weekly[week] = (stats.weekly[week] || 0) + 1;
+
     const code = req.params.code;
     const data = fileMap.get(code);
 
@@ -78,8 +97,9 @@ app.get("/file/:code", (req, res) => {
         fileMap.delete(code);
         return res.status(410).send("File expired");
     }
+    console.log(data);
+    res.redirect(data.url);
 
-    res.redirect(data.url); // Direct redirect to Cloudinary URL
 });
 
 // ... Keep your /ping and /Aj endpoints as they are ...
@@ -104,6 +124,13 @@ app.get("/Aj", (req, res) => {
     res.json({
         totalFiles: result.length,
         files: result
+    });
+});
+
+app.get("/stats", (req, res) => {
+    res.json({
+        daily: stats.daily,
+        weekly: stats.weekly
     });
 });
 

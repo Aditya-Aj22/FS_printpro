@@ -352,8 +352,20 @@ async function uploadFile(name) {
         });
 
         const data = await codeRes.json();
+         if (data.error) {
+            throw new Error(data.error.message);
+        }
+        const codeEl = document.getElementById("generatedCodeDisplay");
+    const section = document.getElementById("copySection");
 
-        document.getElementById("generatedCodeDisplay").innerText = data.code;
+    codeEl.innerText = data.code;
+
+    section.classList.remove("hidden");
+
+    section.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
 
     } catch (err) {
         console.error(err);
@@ -453,42 +465,6 @@ function getFile() {
         alert("Popup blocked! Allow popups. OR File might be deleted kindlyreupload then fetch it!!");
     }
 }
-
-// async function getFile() {
-//     const code = document.getElementById("codeInput").value.trim();
-
-//     if (!code) {
-//         alert("Enter code");
-//         return;
-//     }
-
-//     showLoad();
-
-//     try {
-//         // 🔍 Step 1: check if file exists (HEAD request = fast, no download)
-//         const res = await fetch(`/file/${code}`, {
-//             method: "HEAD"
-//         });
-
-//         if (!res.ok) {
-//             throw new Error("File not found or expired");
-//         }
-
-//         // ✅ Step 2: open ONLY if file exists
-//         const tab = window.open(`/file/${code}`, "_blank");
-
-//         if (!tab) {
-//             alert("Popup blocked! Allow popups.");
-//         }
-
-//     } catch (err) {
-//         alert("File not found or expired");
-//     } finally {
-//         hideLoad();
-//     }
-// }
-
-
 
 
 window.getFile = getFile;
